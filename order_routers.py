@@ -130,10 +130,10 @@ async def update_order(order_id:int, order: OrderModel,current_user: User=Depend
 
 @order_routers.put('/{order_id}/update_status',status_code=200)
 async def update_order_status(order_id: int, order_status: OrderStatus=Query(...),current_user: User=Depends(get_current_user)):
-    # if not current_user.is_staff:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,detail="You can not change status !"
-    #     )
+    if not current_user.is_staff:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,detail="You can not change status !"
+        )
     db_order = session.query(Order).filter(Order.id==order_id).first()
     if db_order is None:
         raise HTTPException(
