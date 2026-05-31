@@ -16,6 +16,8 @@ class SignUpModel(BaseModel):
     is_staff: Optional[bool] = False
     is_active: Optional[bool] = False
 
+    model_config = {"from_attributes": True}
+
 class LoginModel(BaseModel):
     username_or_email: str
     password: str
@@ -25,10 +27,13 @@ class ProductModel(BaseModel):
     name: str
     price: int
 
-  
+    model_config = {"from_attributes": True}
+
 class OrderModel(BaseModel):
-    id: Optional[int]= None
+    id: Optional[int] = None
     quantity: int
-    order_status: Optional[OrderStatus]=OrderStatus.PENDING
-    user_id: Optional[int]=None
+    order_status: Optional[OrderStatus] = OrderStatus.PENDING
+    user_id: Optional[int] = None
     product_id: int
+
+    model_config = {"from_attributes": True}
