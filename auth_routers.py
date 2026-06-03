@@ -1,28 +1,15 @@
-from signal import raise_signal
-
-from fastapi import APIRouter, Query, status, Depends
+from fastapi import APIRouter, status, Depends
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import HTTPException
-from fastapi.security import OAuth2PasswordBearer
-from schemas import ProductModel, SignUpModel, LoginModel,OrderModel
-from database import session, engine
-from models import Product, User,Order
+from schemas import SignUpModel, LoginModel
+from database import session
+from models import User
 from werkzeug.security import generate_password_hash, check_password_hash
-from jose import jwt, JWTError
+from jose import jwt
 from datetime import datetime, timedelta
+from dependencies import oauth2_scheme, SECRET_KEY, ALGORITHM, get_current_user,decode_token
 
 auth_routers = APIRouter(prefix='/auth')
-
-
-# session = session(bind=engine)
-
-
-
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
-
-SECRET_KEY = '735435a0caa6940f0c40d310bfc468698bb499cab5ed173639f73cc04a2ad487'
-ALGORITHM = 'HS256'
 
 
 def create_access_token(subject: str):
@@ -33,7 +20,6 @@ def create_access_token(subject: str):
         algorithm=ALGORITHM
     )
 
-
 def create_refresh_token(subject: str):
     expire = datetime.utcnow() + timedelta(days=7)
     return jwt.encode(
@@ -41,45 +27,6 @@ def create_refresh_token(subject: str):
         SECRET_KEY,
         algorithm=ALGORITHM
     )
-
-
-def decode_token(token: str):
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token ichida username topilmadi!"
-            )
-        return username
-    except JWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token yaroqsiz yoki eskirgan!"
-        )
-
-
-def get_current_user(token: str= Depends(oauth2_scheme)):
-
-    try:
-        payload = jwt.decode(token,SECRET_KEY,algorithms=[ALGORITHM])
-        username: str=payload.get("sub")
-        if username is None:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,detail="Invalid Token")
-    except JWTError:
-        
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token eskirgan yoki yaroqsiz!"
-        )
-    db_user = session.query(User).filter(User.username == username).first()
-
-    if db_user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,detail="User not found"
-        )
-    return db_user
 
 @auth_routers.post('/signup', status_code=status.HTTP_201_CREATED)
 async def signup(user: SignUpModel):
@@ -101,7 +48,6 @@ async def signup(user: SignUpModel):
     session.add(new_user)
     session.commit()
     return {"message": "Foydalanuvchi muvaffaqiyatli yaratildi"}
-
 
 @auth_routers.post('/login', status_code=200)
 async def login(user: LoginModel):
@@ -127,15 +73,12 @@ async def login(user: LoginModel):
         detail='Username, email yoki parol noto\'g\'ri!'
     )
 
-
 @auth_routers.post('/refresh', status_code=200)
 async def refresh(token: str = Depends(oauth2_scheme)):
+    from dependencies import decode_token
     username = decode_token(token)
 
-    db_user = session.query(User).filter(
-        User.username == username
-    ).first()
-
+    db_user = session.query(User).filter(User.username == username).first()
     if db_user is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -143,9 +86,4 @@ async def refresh(token: str = Depends(oauth2_scheme)):
         )
 
     new_access_token = create_access_token(subject=db_user.username)
-
-    return jsonable_encoder({
-        "access": new_access_token
-    })
-
-
+    return jsonable_encoder({"access": new_access_token})
